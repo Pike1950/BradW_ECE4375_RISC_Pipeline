@@ -71,6 +71,8 @@ always_comb begin
         {RW, MD, BS, PS, MW, MB, MA, CS} = 10'b0001100101;
         JML:
         {RW, MD, BS, PS, MW, MB, MA, CS} = 10'b1001100111;
+        default:
+        {RW, MD, BS, PS, MW, MB, MA, CS} = 10'b0000000000; // NOP-equivalent
     endcase
 
 end

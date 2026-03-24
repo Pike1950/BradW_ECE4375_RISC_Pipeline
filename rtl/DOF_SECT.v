@@ -24,17 +24,17 @@ module DOF_SECT(
 
 wire [31:0] const_data;
 wire ha, ma, hb, mb, cs;
-reg [14:0] im = 0;
+reg [14:0] im;
 
 // MUX A data inputs: 0=register file, 1=PC+1, 2=forwarded, 3=forwarded
-wire [31:0] mux_a_data [3:0];
+wire [31:0] mux_a_data [4];
 assign mux_a_data[0] = a_data;
 assign mux_a_data[1] = pc1;
 assign mux_a_data[2] = f_fwd;
 assign mux_a_data[3] = f_fwd;
 
 // MUX B data inputs: 0=register file, 1=constant, 2=forwarded, 3=forwarded
-wire [31:0] mux_b_data [3:0];
+wire [31:0] mux_b_data [4];
 assign mux_b_data[0] = b_data;
 assign mux_b_data[1] = const_data;
 assign mux_b_data[2] = f_fwd;

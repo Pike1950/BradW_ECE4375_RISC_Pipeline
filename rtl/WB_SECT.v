@@ -12,9 +12,14 @@ module WB_SECT(
 wire [31:0] status;
 assign status = {31'd0, vxorn};
 
-MUX_D MD0(
-    .MD_1(md), .F(f), .Data_out(data_out), .status(status),
-    .Bus_D(bus_d)
+// MUX D data inputs: 0=ALU result, 1=memory read, 2=status
+wire [31:0] mux_d_data [3];
+assign mux_d_data[0] = f;
+assign mux_d_data[1] = data_out;
+assign mux_d_data[2] = status;
+
+MUX #(.NUM_INPUTS(3)) MD0(
+    .sel(md), .data(mux_d_data), .out(bus_d)
 );
 
 endmodule

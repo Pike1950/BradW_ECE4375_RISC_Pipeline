@@ -4,7 +4,7 @@ module MUX #(
   parameter int unsigned SEL_WIDTH = $clog2(NUM_INPUTS)
 )(
   input  logic [SEL_WIDTH-1:0]  sel,
-  input  logic [WIDTH-1:0]      data [NUM_INPUTS-1:0],
+  input  logic [WIDTH-1:0]      data [NUM_INPUTS],
   output logic [WIDTH-1:0]      out
 );
 

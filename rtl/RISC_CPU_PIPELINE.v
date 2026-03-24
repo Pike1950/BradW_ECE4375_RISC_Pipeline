@@ -77,7 +77,7 @@ wire [31:0] a_data_rf;      // Register file A read output
 wire [31:0] b_data_rf;      // Register file B read output
 
 // MUX D data inputs: 0=forward f_ex (ALU result), 1=forward data_out_ex (memory read), 2=forward status (vxorn_ex, zero-padded to 32 bits), 3=forward status (vxorn_ex, zero-padded to 32 bits)
-wire [31:0] mux_d_data [3:0];
+wire [31:0] mux_d_data [4];
 assign mux_d_data[0] = f_ex;
 assign mux_d_data[1] = data_out_ex;
 assign mux_d_data[2] = {31'd0, vxorn_ex};

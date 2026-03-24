@@ -10,7 +10,7 @@ module Register_file(
     output reg [31:0] b_data    // Source B data output
 );
 
-reg [31:0] REGISTER [31:0]; // 32 32-bit registers
+reg [31:0] REGISTER [32]; // 32 32-bit registers
 
 integer i;
 

@@ -5,7 +5,7 @@ module Data_mem(
     input clk, MW, rst,
     output reg [31:0] Data_out
     );
-reg [31:0] DATA [255:0];
+reg [31:0] DATA [256];
 
 integer i;
 
