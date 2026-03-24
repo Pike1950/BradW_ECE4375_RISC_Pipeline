@@ -274,12 +274,28 @@ The instruction memory contains a 32-bit signed multiply program that computes 3
 - CR-13: Add branch instruction test program covering BZ, BNZ, JMP, JMR, JML
 
 ### Phase 3: FPGA Synthesis (Tang Primer 25K)
+
+The Tang Primer 25K (Gowin GW5A, 23K LUT4, 1008Kb BSRAM) is in hand. This repo will be forked into a synthesis branch for the following work:
+
 - Standardize clock edges to posedge clk (requires WB forwarding or register file clock inversion)
 - Reduce instruction memory to fit BSRAM (256x32 or 512x32)
+- Convert instruction memory initialization to $readmemh() for program loading without re-synthesis
 - Add PLL for clock generation from 27MHz oscillator
 - Add reset synchronizer for external button input
 - Map status flags and register values to PMOD LEDs
 - Add UART TX for program output
+
+### Phase 4: Branch Prediction (separate fork)
+
+This repo will also be forked into a branch prediction development branch targeting three levels of increasing complexity:
+
+**Level 1: Predict-not-taken with squash.** The pipeline fetches sequentially after a branch, assuming the branch will not be taken. When EX determines the branch is taken, a squash signal cancels the two in-flight instructions by zeroing their pipeline register control fields (RW=0, MW=0, BS=0). The PC redirects to the branch target. This eliminates NOP delay slots entirely for not-taken branches (zero penalty) while taken branches still cost 2 cycles. Hardware cost: one squash signal from MUXC back to the pipeline register block, plus mux logic on the pipeline register inputs.
+
+**Level 2: Static prediction (backward-taken, forward-not-taken).** Extends Level 1 by examining the branch offset sign during DOF. Backward branches (negative offset, typically loop back-edges) are predicted taken, and the pipeline begins fetching from the branch target immediately. Forward branches are predicted not taken. This improves prediction accuracy for loops from ~50% to ~90%+. Requires moving the branch target adder from EX to DOF so the target address is available one cycle earlier.
+
+**Level 3: Dynamic prediction (BTB + BHT).** A Branch Target Buffer (64-256 entries, indexed by PC) stores the target address of recently seen branches. A Branch History Table (2-bit saturating counters) tracks taken/not-taken history per branch. The BTB/BHT is looked up in parallel with IF, providing a prediction and target address in the same cycle as the fetch. Mispredictions still incur the 2-cycle squash penalty, but for well-behaved loops, prediction accuracy approaches 95%+. Hardware cost: SRAM-based BTB and BHT tables, lookup logic in IF, update logic from EX.
+
+The branch prediction work builds toward the GPU stretch goal (Section 2.6 of the Engineering Portfolio Deep Dive) by demonstrating increasingly sophisticated pipeline control logic, which directly applies to managing execution pipelines in programmable processing elements.
 
 ## Design Notes
 
