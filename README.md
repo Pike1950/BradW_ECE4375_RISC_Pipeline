@@ -61,7 +61,7 @@ The original homework submissions used NOP padding between every instruction to 
 
 ### How It Works
 
-When the DOF stage decodes an instruction that reads a register, it checks whether the EX stage is about to write that same register. If so, the ALU result (f_ex) is forwarded directly to the DOF mux instead of reading the stale value from the register file.
+When the DOF stage decodes an instruction that reads a register, it checks whether the EX stage is about to write that same register. If so, the correct value is forwarded directly to the DOF mux via Bus D' instead of reading the stale value from the register file.
 
 The hazard detection equations (from the textbook, page 555):
 
@@ -76,6 +76,19 @@ Four conditions must all be true for forwarding to activate:
 3. The EX instruction is writing to a register (RW=1)
 4. The destination register is not R0 (OR-reduce of DA is 1), since R0 is hardwired to zero
 
+### MUX D' (Forwarding Value Select)
+
+MUX D' sits at the EX/WB boundary and selects the correct value to forward based on `md_ex`. This ensures forwarding works correctly regardless of whether the producing instruction is an ALU operation, a load, or a status write:
+
+| md_ex | Source | Instruction Type |
+|-------|--------|-----------------|
+| 00 | f_ex (ALU result) | Arithmetic, logic, shift, MOV |
+| 01 | data_out_ex (memory read) | LD |
+| 10 | {31'd0, vxorn_ex} (status) | SLT |
+| 11 | {31'd0, vxorn_ex} (status) | (reserved, same as 10) |
+
+Without MUX D', forwarding would only work for ALU instructions. MUX D' ensures the forwarded value on Bus D' is always the value that will ultimately be written to the destination register.
+
 ### MUX A / MUX B Select Encoding
 
 Both operand muxes are 4-input parameterized muxes with a 2-bit select `{H, M}`:
@@ -84,12 +97,30 @@ Both operand muxes are 4-input parameterized muxes with a 2-bit select `{H, M}`:
 |-----|---|---|--------|------|
 | 00 | 0 | 0 | Register file | Normal operation, no hazard |
 | 01 | 0 | 1 | PC+1 (MUX A) / Constant (MUX B) | Jump-and-link / Immediate instruction |
-| 10 | 1 | 0 | Forwarded f_ex | Hazard detected, forwarding from EX |
-| 11 | 1 | 1 | Forwarded f_ex | Hazard + alternate source (forward takes priority) |
+| 10 | 1 | 0 | Forwarded Bus D' | Hazard detected, forwarding from EX |
+| 11 | 1 | 1 | Forwarded Bus D' | Hazard + alternate source (forward takes priority) |
 
-### Current Forwarding Status
+### WB-Stage Forwarding (Two-Cycle Gap)
 
-EX-stage forwarding (Case 1) is implemented: when the producing instruction is one stage ahead in EX, the ALU result wire (f_ex) is forwarded to DOF. WB-stage forwarding (Case 2) is not yet implemented and is needed for hazards where the producing instruction is two stages ahead in WB.
+The textbook design (Fig. 10-19) only implements EX-stage forwarding (one-cycle gap: producer in EX, consumer in DOF). For the two-cycle gap (producer in WB, consumer in DOF), the register file's write-then-read behavior within the same clock cycle resolves the hazard naturally. The WB write completes before the DOF read on the same edge. No additional forwarding hardware is needed for this design.
+
+### Current Data Forwarding Status
+
+EX-stage forwarding is fully implemented and verified via Verilator simulation. The hazard detection signals (HA, HB) correctly fire when consecutive instructions have RAW dependencies, and Bus D' delivers the correct forwarded value through MUX A/B to the consuming instruction.
+
+## Control Hazards (Branch Delay)
+
+### The Problem
+
+Branches (BZ, BNZ) are not resolved until the EX stage, 2 cycles after the branch enters the pipeline. By the time the branch condition is evaluated and the PC is redirected, the two instructions immediately following the branch have already entered IF and DOF and will execute regardless of whether the branch is taken.
+
+In the original NOP-padded code, this was harmless because the two slots after every branch were NOPs. When data forwarding allowed removing NOP gaps between data-dependent instructions, the branch delay slots were inadvertently removed as well. This was discovered during the first Verilator simulation: the multiply program's sign-check branches (BZ at M[11] and M[15]) fell through into SUB/MOV instructions that negated the positive inputs, producing R1=-3 and R2=-7 instead of R1=3 and R2=7.
+
+### The Fix (Pending)
+
+The instruction memory needs 2 NOPs after each BZ/BNZ instruction to fill the branch delay slots. Straight-line instructions (arithmetic, logic, shift, MOV) remain packed tight with no NOP gaps since data forwarding handles their RAW dependencies. Only branch and jump instructions require delay slot padding.
+
+This is a fundamental limitation of the textbook's pipeline architecture: branches resolve in EX (stage 3), so there is always a 2-cycle penalty. The textbook discusses branch prediction as a hardware solution (Figure 10-22, page 560) but that is beyond the current implementation scope.
 
 ## Signal Naming Convention
 
@@ -106,6 +137,49 @@ All signals in the top module follow the pattern `signal_stage` to indicate whic
 | `_fwd` | Forwarded data | `f_fwd` |
 
 Wire signals (combinational outputs) use the stage suffix of the stage that produces them. Register signals use the stage suffix of the stage that consumes them after the clock edge.
+
+## Reading the Waveform
+
+A GTKWave signal list (`pipeline_signals.gtkw`) is included for use with VCD waveform dumps from the Verilator testbench. To generate and view a waveform:
+
+```bash
+verilator --binary --trace --timing -Iinclude \
+  -Wno-WIDTHEXPAND -Wno-WIDTHTRUNC -Wno-INITIALDLY -Wno-WIDTHCONCAT \
+  -Wno-ALWCOMBORDER -Wno-CASEINCOMPLETE -Wno-MULTIDRIVEN -Wno-UNOPTFLAT \
+  --top-module RISC_CPU_PIPELINE_tb \
+  rtl/*.v rtl/*.sv tb/RISC_CPU_PIPELINE_tb.v
+./obj_dir/VRISC_CPU_PIPELINE_tb
+gtkwave waveform.vcd pipeline_signals.gtkw &
+```
+
+### Key Signals by Pipeline Stage
+
+**Clock and Reset:** `clk`, `rst`. 10ns clock period (100 MHz), synchronous reset.
+
+**IF Stage:** `pc_if` (current PC), `pc1_if` (PC+1, fetch address), `ir_if` (fetched instruction).
+
+**DOF Stage, Decode:** `ir_dof` (instruction being decoded), `aa`/`ba` (source register addresses), `da_dof` (destination address), `ma`/`mb` (operand source select), `fs_dof` (ALU function select), `cs` (constant sign extend).
+
+**DOF Stage, Hazard Detection:** `ha`/`hb` (hazard signals, 1 means forwarding is active for Bus A / Bus B).
+
+**DOF Stage, Operands:** `a_data_rf`/`b_data_rf` (register file outputs), `const_data` (sign-extended immediate), `f_fwd` (forwarded value from Bus D'), `bus_a_dof`/`bus_b_dof` (final operand values after mux selection).
+
+**EX Stage:** `da_ex`/`rw_ex` (destination address and write enable, used by DOF hazard detection), `f_ex` (ALU result), `z_ex` (zero flag), `bus_d_prime` (MUX D' output, the forwarded value), `bra_ex` (branch target address), `bs_ex`/`ps_ex` (branch control).
+
+**WB Stage:** `da_wb`/`rw_wb` (write-back destination), `bus_d_wb` (value being written to register file).
+
+**PC Select:** `pc_next` (next PC value from MUX C, shows whether branch was taken).
+
+### How to Trace an Instruction
+
+Pick one instruction and follow it through the stages by watching successive negedge clock edges:
+
+1. It appears in `ir_if` (fetched from instruction memory)
+2. Next negedge: moves to `ir_dof`, and `aa`/`ba` show which registers it reads. Check `ha`/`hb` to see if forwarding fires.
+3. Next negedge: its control signals appear in the `_ex` signals. `f_ex` shows the ALU result. For branches, `bra_ex` shows the computed target and `pc_next` shows whether the branch was taken.
+4. Next negedge: `da_wb`/`rw_wb` show the write-back, and `bus_d_wb` shows the value being written to the register file.
+
+The signals in the `.gtkw` file are ordered top-to-bottom following this flow, so a given instruction's data visually "slides down" the signal list over successive clock edges.
 
 ## Module Hierarchy
 
@@ -151,7 +225,7 @@ hw5_risc/
     MUX_C.v               4:1 PC source mux
     MUX_D.v               3:1 write-back data mux
   tb/
-    RISC_CPU_PIPELINE_tb.v   Top-level testbench
+    RISC_CPU_PIPELINE_tb.v   Self-checking top-level testbench (Verilator)
     Register_file_TB.v       Register file testbench
     MUX_C_tb.v               MUX C testbench
   include/
@@ -163,11 +237,14 @@ hw5_risc/
       fig10_15_pipeline_base.png       Base pipeline architecture
       fig10_19_data_forwarding.png     Pipeline with data forwarding
       table10_20_control_words.png     ISA control word encoding
+  pipeline_signals.gtkw     GTKWave signal list for waveform viewing
 ```
 
 ## Test Program
 
-The instruction memory contains a 32-bit signed multiply program that computes 3 x 7 = 21 using shift-and-add. The result is stored across R20 (high 32 bits) and R21 (low 32 bits). The program handles sign detection, magnitude extraction, shift-and-add multiplication loop, and sign correction of the result.
+The instruction memory contains a 32-bit signed multiply program that computes 3 x 7 = 21 using shift-and-add. The result is stored across R20 (high 32 bits) and R21 (low 32 bits). The program handles sign detection, magnitude extraction, shift-and-add multiplication loop, and sign correction of the result. Instructions are packed consecutively (M[0]-M[40]) with branch offsets calculated using `offset = TargetAddr - BranchAddr - 1`.
+
+**Current status:** The multiply program fails due to the control hazard described above. Branch delay slots need to be re-added before the program will produce correct results.
 
 ## Changes Completed (Phase 1)
 
@@ -181,23 +258,23 @@ The instruction memory contains a 32-bit signed multiply program that computes 3
 | CR-06 | Removed shadowed variable names in Instruction_Mem.v | Done |
 | CR-07 | ALU flag fix: V=0/C=0 defaults, removed initial block, documented Z/N preservation | Done |
 | CR-08 | Internalized unconnected C, N, V ports in EX_SECT | Done |
-| CR-09 | Data forwarding: parameterized mux, hazard detection, EX forwarding | In Progress |
+| CR-09a | Data forwarding: parameterized mux, hazard detection, MUX D', EX forwarding path | Done |
+| CR-09b | Instruction memory repack: removed NOP gaps, recalculated branch offsets | Done |
+| CR-09c | Self-checking testbench: R20/R21 verification, VCD dump, debug register dump on failure | Done |
+| CR-09d | Synchronous reset: merged separate always@(posedge rst) blocks into clocked blocks | Done |
+| CR-09e | Control hazard fix: add branch delay NOPs, recalculate offsets, verify R20=0 R21=21 | **Pending** |
 
 ## Remaining Work
 
-### CR-09 Completion (Phase 1)
-- Add WB-stage forwarding (Case 2): bring bus_d_wb into DOF_SECT for hazards where the producing instruction is in WB
-- Handle MUX D' for EX forwarding when MD selects memory output or status instead of ALU result
-- Repack instruction memory addresses (remove NOP gaps)
-- Recalculate all branch offsets in the multiply program
-- Verify multiply program produces correct result (R20=0, R21=21)
+### CR-09e: Branch Delay Fix (Phase 1, blocks verification)
+
+The multiply program currently fails because branch delay slots were removed during instruction repacking. The fix is to insert 2 NOPs after every BZ/BNZ instruction to fill the 2-cycle branch delay. Straight-line instructions remain packed (data forwarding handles their dependencies). After inserting the NOPs, branch offsets must be recalculated and the Verilator testbench re-run to verify R20=0, R21=21.
 
 ### Phase 2: SystemVerilog Conversion
-- CR-10: Merge separate always@(posedge rst) blocks into always_ff with synchronous reset
-- CR-11: Standardize all clock edges to posedge clk (currently mixed negedge/posedge)
-- CR-12: Remove reg initialization from declarations, convert memories to $readmemh()
-- CR-13: Add self-checking module-level testbenches with golden reference models
-- CR-14: Add branch instruction test program covering BZ, BNZ, JMP, JMR, JML
+- CR-10: Standardize all clock edges to posedge clk (currently negedge for pipeline regs, posedge for register file)
+- CR-11: Remove reg initialization from declarations, convert memories to $readmemh()
+- CR-12: Add self-checking module-level testbenches with golden reference models
+- CR-13: Add branch instruction test program covering BZ, BNZ, JMP, JMR, JML
 
 ### Phase 3: FPGA Synthesis (Tang Primer 25K)
 - Reduce instruction memory to fit BSRAM (256x32 or 512x32)

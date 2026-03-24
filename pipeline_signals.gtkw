@@ -1,0 +1,73 @@
+[*]
+[*] GTKWave Signal List for RISC Pipeline CPU
+[*]
+
+[*] Clock and Reset
+TOP.RISC_CPU_PIPELINE_tb.clk
+TOP.RISC_CPU_PIPELINE_tb.rst
+
+[*] IF Stage
+TOP.RISC_CPU_PIPELINE_tb.uut.pc_if[31:0]
+TOP.RISC_CPU_PIPELINE_tb.uut.pc1_if[31:0]
+TOP.RISC_CPU_PIPELINE_tb.uut.ir_if[31:0]
+
+[*] DOF Stage - Instruction and Control
+TOP.RISC_CPU_PIPELINE_tb.uut.ir_dof[31:0]
+TOP.RISC_CPU_PIPELINE_tb.uut.DOF0.aa[4:0]
+TOP.RISC_CPU_PIPELINE_tb.uut.DOF0.ba[4:0]
+TOP.RISC_CPU_PIPELINE_tb.uut.da_dof[4:0]
+TOP.RISC_CPU_PIPELINE_tb.uut.rw_dof
+TOP.RISC_CPU_PIPELINE_tb.uut.DOF0.ma
+TOP.RISC_CPU_PIPELINE_tb.uut.DOF0.mb
+TOP.RISC_CPU_PIPELINE_tb.uut.fs_dof[4:0]
+TOP.RISC_CPU_PIPELINE_tb.uut.md_dof[1:0]
+TOP.RISC_CPU_PIPELINE_tb.uut.bs_dof[1:0]
+TOP.RISC_CPU_PIPELINE_tb.uut.ps_dof
+TOP.RISC_CPU_PIPELINE_tb.uut.mw_dof
+TOP.RISC_CPU_PIPELINE_tb.uut.DOF0.sh[4:0]
+TOP.RISC_CPU_PIPELINE_tb.uut.DOF0.cs
+
+[*] DOF Stage - Hazard Detection
+TOP.RISC_CPU_PIPELINE_tb.uut.DOF0.ha
+TOP.RISC_CPU_PIPELINE_tb.uut.DOF0.hb
+
+[*] DOF Stage - Operand Buses
+TOP.RISC_CPU_PIPELINE_tb.uut.a_data_rf[31:0]
+TOP.RISC_CPU_PIPELINE_tb.uut.b_data_rf[31:0]
+TOP.RISC_CPU_PIPELINE_tb.uut.DOF0.const_data[31:0]
+TOP.RISC_CPU_PIPELINE_tb.uut.DOF0.f_fwd[31:0]
+TOP.RISC_CPU_PIPELINE_tb.uut.bus_a_dof[31:0]
+TOP.RISC_CPU_PIPELINE_tb.uut.bus_b_dof[31:0]
+
+[*] EX Stage
+TOP.RISC_CPU_PIPELINE_tb.uut.da_ex[4:0]
+TOP.RISC_CPU_PIPELINE_tb.uut.rw_ex
+TOP.RISC_CPU_PIPELINE_tb.uut.fs_ex[4:0]
+TOP.RISC_CPU_PIPELINE_tb.uut.md_ex[1:0]
+TOP.RISC_CPU_PIPELINE_tb.uut.bs_ex[1:0]
+TOP.RISC_CPU_PIPELINE_tb.uut.ps_ex
+TOP.RISC_CPU_PIPELINE_tb.uut.mw_ex
+TOP.RISC_CPU_PIPELINE_tb.uut.sh_ex[4:0]
+TOP.RISC_CPU_PIPELINE_tb.uut.bus_a_ex[31:0]
+TOP.RISC_CPU_PIPELINE_tb.uut.bus_b_ex[31:0]
+TOP.RISC_CPU_PIPELINE_tb.uut.f_ex[31:0]
+TOP.RISC_CPU_PIPELINE_tb.uut.z_ex
+TOP.RISC_CPU_PIPELINE_tb.uut.vxorn_ex
+TOP.RISC_CPU_PIPELINE_tb.uut.bra_ex[31:0]
+TOP.RISC_CPU_PIPELINE_tb.uut.data_out_ex[31:0]
+TOP.RISC_CPU_PIPELINE_tb.uut.pc2_ex[31:0]
+
+[*] MUX D' (Forwarding Value Select)
+TOP.RISC_CPU_PIPELINE_tb.uut.bus_d_prime[31:0]
+
+[*] WB Stage
+TOP.RISC_CPU_PIPELINE_tb.uut.da_wb[4:0]
+TOP.RISC_CPU_PIPELINE_tb.uut.rw_wb
+TOP.RISC_CPU_PIPELINE_tb.uut.md_wb[1:0]
+TOP.RISC_CPU_PIPELINE_tb.uut.f_wb[31:0]
+TOP.RISC_CPU_PIPELINE_tb.uut.data_out_wb[31:0]
+TOP.RISC_CPU_PIPELINE_tb.uut.bus_d_wb[31:0]
+TOP.RISC_CPU_PIPELINE_tb.uut.vxorn_wb
+
+[*] PC Select (MUXC)
+TOP.RISC_CPU_PIPELINE_tb.uut.pc_next[31:0]

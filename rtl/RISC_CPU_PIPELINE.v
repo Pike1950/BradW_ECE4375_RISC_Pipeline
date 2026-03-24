@@ -155,39 +155,41 @@ MUX #(.NUM_INPUTS(4)) MD0(
 // ============================================================================
 
 always @(negedge clk) begin
-    // IF -> DOF boundary
-    pc_if       <= pc_next;
-    pc1_dof     <= pc1_if;
-    ir_dof      <= ir_if;
+    if (rst) begin
+        // Synchronous reset: clear all pipeline registers
+        {pc_if, pc1_dof, pc2_ex}                                    <= 0;
+        ir_dof                                                       <= 0;
+        {rw_ex, da_ex, md_ex, bs_ex, ps_ex, mw_ex, fs_ex, sh_ex}   <= 0;
+        {rw_wb, da_wb, md_wb}                                        <= 0;
+        {bus_a_ex, bus_b_ex}                                         <= 0;
+        {vxorn_wb, f_wb, data_out_wb}                                <= 0;
+    end else begin
+        // IF -> DOF boundary
+        pc_if       <= pc_next;
+        pc1_dof     <= pc1_if;
+        ir_dof      <= ir_if;
 
-    // DOF -> EX boundary
-    pc2_ex      <= pc1_dof;
-    rw_ex       <= rw_dof;
-    da_ex       <= da_dof;
-    md_ex       <= md_dof;
-    bs_ex       <= bs_dof;
-    ps_ex       <= ps_dof;
-    mw_ex       <= mw_dof;
-    fs_ex       <= fs_dof;
-    sh_ex       <= sh_dof;
-    bus_a_ex    <= bus_a_dof;
-    bus_b_ex    <= bus_b_dof;
+        // DOF -> EX boundary
+        pc2_ex      <= pc1_dof;
+        rw_ex       <= rw_dof;
+        da_ex       <= da_dof;
+        md_ex       <= md_dof;
+        bs_ex       <= bs_dof;
+        ps_ex       <= ps_dof;
+        mw_ex       <= mw_dof;
+        fs_ex       <= fs_dof;
+        sh_ex       <= sh_dof;
+        bus_a_ex    <= bus_a_dof;
+        bus_b_ex    <= bus_b_dof;
 
-    // EX -> WB boundary
-    rw_wb       <= rw_ex;
-    da_wb       <= da_ex;
-    md_wb       <= md_ex;
-    vxorn_wb    <= vxorn_ex;
-    f_wb        <= f_ex;
-    data_out_wb <= data_out_ex;
-end
-
-always @(posedge rst) begin
-    {pc_if, pc1_dof, pc2_ex} = 0;
-    ir_dof = 0;
-    {rw_ex, da_ex, md_ex, bs_ex, ps_ex, mw_ex, fs_ex, sh_ex} = 0;
-    {rw_wb, da_wb, md_wb} = 0;
-    {bus_a_ex, bus_b_ex} = 0;
+        // EX -> WB boundary
+        rw_wb       <= rw_ex;
+        da_wb       <= da_ex;
+        md_wb       <= md_ex;
+        vxorn_wb    <= vxorn_ex;
+        f_wb        <= f_ex;
+        data_out_wb <= data_out_ex;
+    end
 end
 
 endmodule

@@ -20,19 +20,15 @@ always_comb begin
 end
 
 always@(negedge clk) begin
-        if(Address > 255)
-                DATA[255] <= (MW)? Data_in : DATA[255]; // Last data memory address available
-        else
-                DATA[Address] <= (MW)? Data_in : DATA[Address]; // If writing to the memory, then update with new data or keep old data
-end
-
-always@(posedge rst) begin // If reset, then zero all of the data addresses
-
-        if(rst) begin
-                for(i = 0; i < 256; i = i + 1)
-                        DATA[i] <= 0;
+        if (rst) begin
+                for (i = 0; i < 256; i = i + 1)
+                        DATA[i] = 0;
+        end else begin
+                if(Address > 255)
+                        DATA[255] <= (MW)? Data_in : DATA[255];
+                else
+                        DATA[Address] <= (MW)? Data_in : DATA[Address];
         end
-
 end
 
 endmodule

@@ -25,14 +25,12 @@ always_comb begin
 end
 
 always @(posedge clk) begin
-        REGISTER[da] <= ((rw) && (da == 0)) ? 0 :
-                         (rw) ? d_data[31:0] : REGISTER[da];
-end
-
-always @(posedge rst) begin
-        if(rst) begin
-                for(i = 0; i < 32; i = i + 1)
-                        REGISTER[i] <= 0;
+        if (rst) begin
+                for (i = 0; i < 32; i = i + 1)
+                        REGISTER[i] = 0;
+        end else begin
+                REGISTER[da] <= ((rw) && (da == 0)) ? 0 :
+                                 (rw) ? d_data[31:0] : REGISTER[da];
         end
 end
 
