@@ -116,9 +116,9 @@ Branches (BZ, BNZ) are not resolved until the EX stage, 2 cycles after the branc
 
 In the original NOP-padded code, this was harmless because the two slots after every branch were NOPs. When data forwarding allowed removing NOP gaps between data-dependent instructions, the branch delay slots were inadvertently removed as well. This was discovered during the first Verilator simulation: the multiply program's sign-check branches (BZ at M[11] and M[15]) fell through into SUB/MOV instructions that negated the positive inputs, producing R1=-3 and R2=-7 instead of R1=3 and R2=7.
 
-### The Fix (Pending)
+### The Fix
 
-The instruction memory needs 2 NOPs after each BZ/BNZ instruction to fill the branch delay slots. Straight-line instructions (arithmetic, logic, shift, MOV) remain packed tight with no NOP gaps since data forwarding handles their RAW dependencies. Only branch and jump instructions require delay slot padding.
+The instruction memory includes 2 NOPs after each BZ/BNZ instruction to fill the branch delay slots. Straight-line instructions (arithmetic, logic, shift, MOV) remain packed tight with no NOP gaps since data forwarding handles their RAW dependencies. Only branch and jump instructions require delay slot padding.
 
 This is a fundamental limitation of the textbook's pipeline architecture: branches resolve in EX (stage 3), so there is always a 2-cycle penalty. The textbook discusses branch prediction as a hardware solution (Figure 10-22, page 560) but that is beyond the current implementation scope.
 
@@ -200,7 +200,7 @@ RISC_CPU_PIPELINE (top)
   |-- MUXC_SECT           Branch/PC select logic
   |     |-- MUX_C             4:1 PC source mux
   |-- WB_SECT             Write-back stage
-        |-- MUX_D             3:1 write-back data mux (F / Data_out / status)
+        |-- MUX (MD0)          3:1 parameterized mux for write-back data
 ```
 
 ## File Structure
@@ -221,9 +221,8 @@ hw5_risc/
     Instruction_Dec.v     Control word decoder
     Instruction_Mem.v     1025x32 instruction memory (multiply program)
     Register_file.v       32x32 register file
-    MUX.sv                Parameterized N-input mux
-    MUX_C.v               4:1 PC source mux
-    MUX_D.v               3:1 write-back data mux
+    MUX.sv                Parameterized N-input mux (used in DOF, WB, and top module)
+    MUX_C.v               4:1 PC source mux (non-standard select mapping)
   tb/
     RISC_CPU_PIPELINE_tb.v   Self-checking top-level testbench (Verilator)
     Register_file_TB.v       Register file testbench
@@ -242,11 +241,11 @@ hw5_risc/
 
 ## Test Program
 
-The instruction memory contains a 32-bit signed multiply program that computes 3 x 7 = 21 using shift-and-add. The result is stored across R20 (high 32 bits) and R21 (low 32 bits). The program handles sign detection, magnitude extraction, shift-and-add multiplication loop, and sign correction of the result. Instructions are packed consecutively (M[0]-M[40]) with branch offsets calculated using `offset = TargetAddr - BranchAddr - 1`.
+The instruction memory contains a 32-bit signed multiply program that computes 3 x 7 = 21 using shift-and-add. The result is stored across R20 (high 32 bits) and R21 (low 32 bits). The program handles sign detection, magnitude extraction, shift-and-add multiplication loop, and sign correction of the result. Straight-line instructions are packed consecutively with data forwarding handling RAW dependencies. Branch instructions (BZ/BNZ) are followed by 2 NOP delay slots to account for the 2-cycle branch resolution delay. The program spans M[0]-M[50] with branch offsets calculated using `offset = TargetAddr - BranchAddr - 1`.
 
-**Current status:** The multiply program fails due to the control hazard described above. Branch delay slots need to be re-added before the program will produce correct results.
+**Verification status:** PASS. R20=0x00000000, R21=0x00000015 (21 decimal). Verified in Verilator simulation with self-checking testbench.
 
-## Changes Completed (Phase 1)
+## Changes Completed (Phase 1 Complete)
 
 | ID | Change | Status |
 |----|--------|--------|
@@ -262,13 +261,11 @@ The instruction memory contains a 32-bit signed multiply program that computes 3
 | CR-09b | Instruction memory repack: removed NOP gaps, recalculated branch offsets | Done |
 | CR-09c | Self-checking testbench: R20/R21 verification, VCD dump, debug register dump on failure | Done |
 | CR-09d | Synchronous reset: merged separate always@(posedge rst) blocks into clocked blocks | Done |
-| CR-09e | Control hazard fix: add branch delay NOPs, recalculate offsets, verify R20=0 R21=21 | **Pending** |
+| CR-09e | Control hazard fix: add branch delay NOPs, recalculate offsets, verify R20=0 R21=21 | Done |
+| CR-09f | Verible lint fixes: unpacked dimension ordering, default case, MULTIDRIVEN fix | Done |
+| CR-09g | Replaced MUX_D.v with parameterized MUX in WB_SECT, deleted MUX_D.v | Done |
 
 ## Remaining Work
-
-### CR-09e: Branch Delay Fix (Phase 1, blocks verification)
-
-The multiply program currently fails because branch delay slots were removed during instruction repacking. The fix is to insert 2 NOPs after every BZ/BNZ instruction to fill the 2-cycle branch delay. Straight-line instructions remain packed (data forwarding handles their dependencies). After inserting the NOPs, branch offsets must be recalculated and the Verilator testbench re-run to verify R20=0, R21=21.
 
 ### Phase 2: SystemVerilog Conversion
 - CR-10: Standardize all clock edges to posedge clk (currently negedge for pipeline regs, posedge for register file)
