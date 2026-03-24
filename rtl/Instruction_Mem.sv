@@ -1,21 +1,21 @@
+`default_nettype none
 `timescale 1ns / 1ps
 
-module Instruction_Mem( input [31:0] PC,
-                        output reg [31:0] IR
-                        );
+module Instruction_Mem(
+    input  logic [31:0] PC,
+    output logic [31:0] IR
+);
+
 `include "OPCODES.INC";
 `include "REGISTERS.INC";
 
-reg [6:0] opcode = 0; // values come from Fig.10-13 RISC CPU Instruction Formats
-reg [31:0] M [1025];
+logic [31:0] M [1025];
 integer i;
 
 initial begin
-
-    for(i = 0; i < 100; i = i + 1) begin
-        M[i] = 0; // NOP
+    for (i = 0; i < 100; i = i + 1) begin
+        M[i] = '0; // NOP
     end
-
 
     //         7-bit | 5-bit|5-bit| 5-bit + 10-bit |
     //        OPCODE | DEST | SA  | TARGET JUMP    | 15-bit
@@ -93,7 +93,6 @@ initial begin
     // Set R20 (HIGH 32) and R21 (LOW 32) with portions of product
     M[49]   = {LSR,    R20,    R12,     15'd0};
     M[50]   = {MOV,    R21,    R11,     15'd0};
-
 end
 
 always_comb begin
@@ -101,3 +100,4 @@ always_comb begin
 end
 
 endmodule
+`default_nettype wire
