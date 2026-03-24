@@ -1,0 +1,8 @@
+RISC pipelined CPU: Phase 1 refactor with data forwarding
+
+- CR-01 through CR-08 complete (structural cleanup, ALU flag fix, port fixes)
+- CR-09 in progress: parameterized mux, EX-stage hazard detection and forwarding
+- Signal rename: all pipeline signals annotated with stage suffix (_if, _dof, _ex, _wb)
+- Removed dead modules (TOP_SECT, MUX_A, MUX_B, DOF_MUX)
+- Added parameterized N-input mux (MUX.sv)
+- Architecture documentation with textbook figures
